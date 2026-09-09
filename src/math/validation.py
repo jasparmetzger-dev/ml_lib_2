@@ -14,4 +14,4 @@ class ShapeError(Exception):
 def validate_shape(shape: Tuple[int, ...], size: int) -> None:
     if cumprod(list(shape)) != size:
         raise ShapeError(f"checked shape {shape} does not match size {size}")
-    return None
+
