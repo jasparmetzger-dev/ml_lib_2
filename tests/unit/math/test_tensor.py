@@ -3,7 +3,7 @@ from decimal import Decimal
 import pytest
 
 from src.math.tensor import Tensor
-from src.math.validation import ShapeError
+from src.math.validation_shape import ShapeError
 
 
 def test_tensor_flattens_nested_lists_and_infers_shape():

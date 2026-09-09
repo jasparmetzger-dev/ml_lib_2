@@ -1,7 +1,7 @@
 from typing import Any, Optional
 
 from .ops import cumsum
-from .validation import ShapeError
+from .validation_shape import ShapeError
 
 
 class Tensor:
