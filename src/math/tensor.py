@@ -7,15 +7,33 @@ from .scalar import is_scalar
 
 class Tensor:
     def __init__(self, data: list[Any], shape: Optional[tuple[int, ...]] = None, stype: Optional[type] = None):
-        self._data: list[Any] = self._make_1d(
-            self._clean_data(data, _type=stype)
-        )
-        self._shape: tuple[int, ...] = self._infer_shape(data)
-        self._strides: tuple[int, ...] = self._infer_strides()
+        """
+        initializes a Tensor. Two ways of initializing:
+        1. Nestes lists of data
+        2. 1D list of data with a precalculated shape
+        """
+
+        # 1. method
+        if shape is None:
+            self._data: list[Any] = self._make_1d(
+                self._clean_data(data, _type=stype)
+            )
+            self._shape: tuple[int, ...]   = self._infer_shape(data)
+            self._strides: tuple[int, ...] = self._infer_strides()
+        # 2. method
+        else:
+            if prod(list(shape)) != len(data):
+                raise ValueError(f"shape {shape} and data of length {len(data)} are not equal.")
+
+            self._data: list[Any]          = self._clean_data(data, _type=stype)
+            self._shape: tuple[int, ...]   = shape
+            self._strides: tuple[int, ...] = self._infer_strides()
+
 
     # -------------------------------------------------
     # DUNDER METHODS
     # -------------------------------------------------
+
     def __eq__(self, other: Any) -> bool:
         """
         Equality does not support broadcasting
@@ -24,13 +42,11 @@ class Tensor:
 
         if not isinstance(other, Tensor):
             raise TypeError(f"Cannot compare type Tensor and {type(other)}")
-
         if self._shape != other._shape:
             return False
 
         for i, j in zip(self._data, other.data_1d):
             if i != j: return False
-
         return True
 
     def __repr__(self) -> str:
@@ -68,6 +84,7 @@ class Tensor:
     # -------------------------------------------------
     # ARITHMETIC DUNDER METHODS
     # -------------------------------------------------
+
     def __add__(self, other: Any) -> "Tensor":
         return Tensor.add(self, other)
     def __iadd__(self, other: Any) -> "Tensor":
@@ -144,12 +161,6 @@ class Tensor:
         return self._data
 
     @property
-    def T(self) -> "Tensor":
-        self._shape = self._shape[::-1]
-        self._strides = self._infer_strides()
-        return Tensor([])
-
-    @property
     def stype(self) -> type:
         return type(self._data[0]) if self._data else type(None) #type: ignore
 
@@ -167,6 +178,11 @@ class Tensor:
 
     def copy(self) -> "Tensor":
         return Tensor(self._data, self._shape)
+
+    def T(self) -> "Tensor":
+        self._shape = self._shape[::-1]
+        self._strides = self._infer_strides()
+        return self
 
     def sum(self) -> Any:
         return self.stype(sum(self._data))
