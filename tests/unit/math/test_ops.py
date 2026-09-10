@@ -3,7 +3,7 @@ from typing import Any
 
 import pytest
 
-from src.math.ops import cumprod, cumsum
+from src.math.ops import prod, cumsum
 
 
 @pytest.mark.parametrize(
@@ -35,7 +35,7 @@ def test_cumsum_handles_edge_cases(data: list[Any], expected:Any):
     ],
 )
 def test_cumprod_handles_edge_cases(data: list[Any], expected: Any):
-    assert cumprod(data) == pytest.approx(expected)
+    assert prod(data) == pytest.approx(expected)
 
 
 def test_cumsum_raises_typeerror_with_note_for_invalid_input_types():
@@ -49,7 +49,7 @@ def test_cumsum_raises_typeerror_with_note_for_invalid_input_types():
 
 def test_cumprod_raises_typeerror_with_note_for_invalid_input_types():
     with pytest.raises(TypeError) as excinfo:
-        cumprod(["two", 3])
+        prod(["two", 3])
 
     assert excinfo.value.__notes__
     assert "Could not multiply elements of type" in excinfo.value.__notes__[0]

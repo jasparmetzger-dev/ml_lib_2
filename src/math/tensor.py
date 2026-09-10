@@ -1,16 +1,123 @@
 from typing import Any, Optional
 
-from .ops import cumsum
-from .validation import ShapeError
+from .ops import prod
+from .validation import ShapeError, is_broadcastable
+from .scalar import is_scalar
 
 
 class Tensor:
-    def __init__(self, data: list[Any], stype: Optional[type] = None):
+    def __init__(self, data: list[Any], shape: Optional[tuple[int, ...]] = None, stype: Optional[type] = None):
         self._data: list[Any] = self._make_1d(
             self._clean_data(data, _type=stype)
         )
         self._shape: tuple[int, ...] = self._infer_shape(data)
         self._strides: tuple[int, ...] = self._infer_strides()
+
+    # -------------------------------------------------
+    # DUNDER METHODS
+    # -------------------------------------------------
+    def __eq__(self, other: Any) -> bool:
+        """
+        Equality does not support broadcasting
+        Only returns True with Tensors with the same shape and data
+        """
+
+        if not isinstance(other, Tensor):
+            raise TypeError(f"Cannot compare type Tensor and {type(other)}")
+
+        if self._shape != other._shape:
+            return False
+
+        for i, j in zip(self._data, other.data_1d):
+            if i != j: return False
+
+        return True
+
+    def __repr__(self) -> str:
+        raise NotImplementedError
+
+    def __len__(self) -> int:
+        return self.size
+
+    def __getitem__(self, index: int) -> Any:
+        if index < 0 or index > self.size - 1:
+            raise IndexError("Index out of range")
+        return self._data[index]
+
+    def __setitem__(self, index: int, value: Any) -> None:
+        if index < 0 or index > self.size - 1:
+            raise IndexError("Index out of range")
+
+        try:
+            value = self.stype(value)
+        except (TypeError, ValueError) as e:
+            e.add_note(f"could not broadcast value of type {type(value)} to the stype {self.stype}")
+            raise e
+
+        self._data[index] = value
+
+    def __contains__(self, value: Any) -> bool:
+        try: value = self.stype(value)
+        except (TypeError, ValueError): return False
+
+        for ele in self._data:
+            if ele == value:
+                return True
+        return False
+
+    # -------------------------------------------------
+    # ARITHMETIC DUNDER METHODS
+    # -------------------------------------------------
+    def __add__(self, other: Any) -> "Tensor":
+        return Tensor.add(self, other)
+    def __iadd__(self, other: Any) -> "Tensor":
+        result = Tensor.add(self, other)
+        self._data = result._data
+        self._shape = result._shape
+        self._strides = result._strides
+        return self
+
+    def __sub__(self, other: Any) -> "Tensor":
+        return Tensor.subtract(self, other)
+    def __isub__(self, other: Any) -> "Tensor":
+        result = Tensor.subtract(self, other)
+        self._data = result._data
+        self._shape = result._shape
+        self._strides = result._strides
+        return self
+
+    def __mul__(self, other: Any) -> "Tensor":
+        return Tensor.scalar_multiply(self, other)
+    def __rmul__(self, other: Any) -> "Tensor":
+        return Tensor.scalar_multiply(self, other)
+    def __imul__(self, other: Any) -> "Tensor":
+        result = Tensor.scalar_multiply(self, other)
+        self._data = result._data
+        self._shape = result._shape
+        self._strides = result._strides
+        return self
+
+    def __truediv__(self, other: Any) -> "Tensor":
+        return Tensor.scalar_true_divide(self, other, is_tensor_left=True)
+    def __rtruediv__(self, other: Any) -> "Tensor":
+        return Tensor.scalar_true_divide(self, other, is_tensor_left=False)
+    def __itruediv__(self, other: Any) -> "Tensor":
+        result = Tensor.scalar_true_divide(self, other, is_tensor_left=True)
+        self._data = result._data
+        self._shape = result._shape
+        self._strides = result._strides
+        return self
+
+    def __pow__(self, other: Any) -> "Tensor":
+        return Tensor.scalar_exponentiate(self, other, is_tensor_base=True)
+    def __rpow__(self, other: Any) -> "Tensor":
+        return Tensor.scalar_exponentiate(self, other, is_tensor_base=False)
+
+    def __neg__(self) -> "Tensor":
+        return self * -1
+    def __abs__(self) -> "Tensor":
+        self._data = [abs(val) for val in self._data]
+        return self
 
     # -------------------------------------------------
     # PROPERTIES
@@ -22,7 +129,7 @@ class Tensor:
 
     @property
     def size(self) -> int:
-        return cumsum(list(self._shape))
+        return sum(list(self._shape))
 
     @property
     def ndim(self) -> int:
@@ -52,11 +159,29 @@ class Tensor:
     # -------------------------------------------------
 
     def reshape(self, newShape: tuple[int, ...]) -> None:
-        if cumsum(list(newShape)) != self.size:
+        if sum(list(newShape)) != self.size:
             raise ShapeError(f"checked shape {newShape} does not match size {self.size}")
 
         self._shape = newShape
         self._strides = self._infer_strides()
+
+    def copy(self) -> "Tensor":
+        return Tensor(self._data, self._shape)
+
+    def sum(self) -> Any:
+        return self.stype(sum(self._data))
+
+    def prod(self) -> Any:
+        return self.stype(prod(self._data))
+
+    # -------------------------------------------------
+    # STATIC
+    # -------------------------------------------------
+
+    @staticmethod
+    def broadcast(shape: tuple[int, ...], tensor: "Tensor") -> "Tensor":
+        tensor.reshape(shape)
+        return tensor
 
     # -------------------------------------------------
     # PRIVATE
@@ -75,7 +200,6 @@ class Tensor:
 
         _get_elements_recursively(data)
         return arr
-
 
     def _infer_shape(self, data: Optional[list[Any]] = None) -> tuple[int, ...]:
         if data is None: x = self._data
@@ -129,6 +253,66 @@ class Tensor:
                 raise TypeError(f"Expected all tensor values to be of type {_type}")
         return data
 
-# ---------------------------------
-# UTILS
-# ---------------------------------
+    # -------------------------------------------------
+    # UTIL DUNDER MATH
+    # -------------------------------------------------
+    @staticmethod
+    def add(a: "Tensor", b: "Tensor") -> "Tensor":
+        # check shapes and types
+        if a.size != b.size or not is_broadcastable(a._shape, b._shape):
+            raise ShapeError(f"Tensors of shape {a._shape} and {b._shape} are not broadcastable.")
+        try: a.stype(b._data[0])
+        except (TypeError, ValueError):
+            raise TypeError(f"Elements of the Tensors with types {a.stype}, {b.stype} can not be casted into each other")
+
+        if a._shape != b._shape:
+            b = Tensor.broadcast(a._shape, b)
+
+        new_data = [ele_a + ele_b for ele_a, ele_b in zip(a._data, b._data)]
+        return Tensor(new_data, a._shape)
+
+    @staticmethod
+    def subtract(a: "Tensor", b: "Tensor") -> "Tensor":
+        # check shapes and types
+        if a.size != b.size or not is_broadcastable(a._shape, b._shape):
+             raise ShapeError(f"Tensors of shape {a._shape} and {b._shape} are not broadcastable.")
+        try: a.stype(b._data[0])
+        except (TypeError, ValueError):
+            raise TypeError(f"Elements of the Tensors with types {a.stype}, {b.stype} can not be casted into each other")
+
+        if a._shape != b._shape:
+            b = Tensor.broadcast(a._shape, b)
+
+        new_data = [ele_a - ele_b for ele_a, ele_b in zip(a._data, b._data)]
+        return Tensor(new_data, a._shape)
+
+    @staticmethod
+    def scalar_multiply(tensor: "Tensor", scalar: Any) -> "Tensor":
+        if not is_scalar(scalar):
+            raise TypeError("can only scalar_multiply() Tensor with a scalar.")
+
+        new_data = [ele * scalar for ele in tensor._data]
+        return Tensor(new_data, tensor._shape)
+
+    @staticmethod
+    def scalar_true_divide(tensor: "Tensor", scalar: Any, is_tensor_left: bool) -> "Tensor":
+        if not is_scalar(scalar):
+            raise TypeError("can only scalar_multiply() Tensor with a scalar.")
+
+        if is_tensor_left:
+            new_data = [ele / scalar for ele in tensor._data]
+        else:
+            new_data = [scalar / ele for ele in tensor._data]
+        return Tensor(new_data, tensor._shape)
+
+
+    @staticmethod
+    def scalar_exponentiate(tensor: "Tensor", scalar: Any, is_tensor_base: bool) -> "Tensor":
+        if not is_scalar(scalar):
+            raise TypeError("can only scalar_multiply() Tensor with a scalar.")
+
+        if is_tensor_base:
+            new_data = [ele ** scalar for ele in tensor._data]
+        else:
+            new_data = [scalar ** ele for ele in tensor._data]
+        return Tensor(new_data, tensor._shape)
