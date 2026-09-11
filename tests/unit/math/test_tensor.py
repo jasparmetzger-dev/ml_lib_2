@@ -1,4 +1,5 @@
 from decimal import Decimal
+from typing import Any
 
 import pytest
 
@@ -54,9 +55,58 @@ def test_tensor_len_and_size(tensor: Tensor, ele_amount: int):
 def test_tensor_geitem_setitem():
     tensor = Tensor([[1, 2, 3], [4, 5, 6]])
     assert tensor.shape == (2, 3)
-    tensor[(1, 2)] = 9
-    assert tensor[(1, 2)] == 9
-    raise NotImplementedError
+    tensor[2] = 9
+    assert tensor[2] == 9
+
+@pytest.mark.parametrize(
+    ("tensor", "val", "is_contained"),
+    [
+        (Tensor([[1, 2, 3], [4, 5, 6]]), 2, True),
+        (Tensor([[1, 2, 3], [4, 5, 6]]), 2.0, True),
+        (Tensor([[1, 2, 3], [4, 5, 6]]), Decimal(2), True),
+        (Tensor([[1, 2, 3], [4, 5, 6]]), "two", False),
+        (Tensor([[1, 0, 3], [4, 5, 6]]), 2, False),
+    ]
+)
+def test_tensor_contains(tensor: Tensor, val: Any, is_contained: bool):
+    assert (val in tensor) == is_contained
+
+# -----------------------------------
+# Test arithmetic dunder-methods
+# -----------------------------------
+
+def test_tensor_tensor_add_subtract():
+    tensor1, tensor2 = Tensor([[1, 2, 3], [4, 5, 6]]), Tensor([[1, 1, 1], [1, 1, 1]])
+    assert tensor1 + tensor2 == Tensor([[2, 3, 4], [5, 6, 7]])
+    assert tensor1 - tensor2 == Tensor([[0, 1, 2], [3, 4, 5]])
+
+    tensor1 += tensor2
+    assert tensor1 == Tensor([[2, 3, 4], [5, 6, 7]])
+    tensor1 -= tensor2
+    tensor1 -= tensor2
+    assert tensor1 == Tensor([[0, 1, 2], [3, 4, 5]])
+
+    assert Tensor.add(tensor1, tensor2) == Tensor([[1, 2, 3], [4, 5, 6]])
+    assert Tensor.subtract(tensor1, tensor2) == Tensor([[-1, 0, 1], [2, 3, 4]])
+
+    tensor_int, tensor_float = Tensor([1, 2]), Tensor([2.0, 2.5])
+    res = tensor_int + tensor_float
+    assert res.stype == float
+    for val in res._data:
+        assert type(val) == res.stype
+
+def test_tensor_scalar_mult_div():
+    tensor = Tensor([1, 2, 3, 4, 5, 6], (2, 3))
+    assert tensor * 2 == Tensor([2, 4, 6, 8, 10, 12], (2, 3))
+    assert 2 * tensor == Tensor([2, 4, 6, 8, 10, 12], (2, 3))
+    tensor *= 2
+    assert tensor == Tensor([2, 4, 6, 8, 10, 12], (2, 3))
+
+    assert tensor / 2 == Tensor([1, 2, 3, 4, 5, 6], (2, 3))
+    tensor /= 2
+    assert tensor == Tensor([1, 2, 3, 4, 5, 6], (2, 3))
+    assert pytest.approx(2 / tensor) == Tensor([2.0, 1.0, 2 / 3, 0.5, 2 / 5, 2 / 6], (2, 3))
+
 
 
 # -----------------------------------

@@ -22,7 +22,7 @@ def test_prod_handles_edge_cases(data: list[Any], expected: Any):
     assert prod(data) == pytest.approx(expected)
 
 
-def test_cumprod_raises_typeerror_with_note_for_invalid_input_types():
+def test_cumprod_raising_error():
     with pytest.raises(TypeError) as excinfo:
         prod(["two", 3])
 

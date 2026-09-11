@@ -4,6 +4,11 @@ from .ops import prod
 from .validation import ShapeError, is_broadcastable
 from .scalar import is_scalar
 
+# -------------------------------------------------
+# TODO: __repr__
+# TODO: __getitem__ for ranges and dimensions
+# TODO is_broadcastable(), broadcast()
+# -------------------------------------------------
 
 class Tensor:
     def __init__(self, data: list[Any], shape: Optional[tuple[int, ...]] = None, stype: Optional[type] = None):
@@ -48,8 +53,9 @@ class Tensor:
             if i != j: return False
         return True
 
+    # TODO IMPLEMENT __repr__()
     def __repr__(self) -> str:
-        raise NotImplementedError
+        return f"values {self._data} with shape {self._shape}"
 
     def __len__(self) -> int:
         return self.size
@@ -145,7 +151,7 @@ class Tensor:
 
     @property
     def size(self) -> int:
-        return sum(list(self._shape))
+        return prod(list(self._shape))
 
     @property
     def ndim(self) -> int:
@@ -169,7 +175,7 @@ class Tensor:
     # -------------------------------------------------
 
     def reshape(self, newShape: tuple[int, ...]) -> None:
-        if sum(list(newShape)) != self.size:
+        if prod(list(newShape)) != self.size:
             raise ShapeError(f"checked shape {newShape} does not match size {self.size}")
 
         self._shape = newShape
