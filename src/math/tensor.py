@@ -4,7 +4,10 @@ from .ops import prod
 from .validation import ShapeError, is_broadcastable
 from .scalar import is_scalar
 
+
+
 # -------------------------------------------------
+# TODO: outer and @
 # TODO: __repr__
 # TODO: __getitem__ / __setitem__ for ranges
 # TODO is_broadcastable(), broadcast()
@@ -148,6 +151,9 @@ class Tensor:
         self._data = [abs(val) for val in self._data]
         return self
 
+
+    def __matmul__(self, other: "Tensor") -> "Tensor":
+        ...
     # -------------------------------------------------
     # PROPERTIES
     # -------------------------------------------------
@@ -211,6 +217,9 @@ class Tensor:
         tensor.reshape(shape)
         return tensor
 
+    @staticmethod
+    def outer(tensor1: "Tensor", tensor2: "Tensor") -> "Tensor":
+        ...
     # -------------------------------------------------
     # PRIVATE
     # -------------------------------------------------
