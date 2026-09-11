@@ -5,6 +5,9 @@ import pytest
 from src.math.tensor import Tensor
 from src.math.validation import ShapeError
 
+# -----------------------------------
+# Test dunder-methods
+# -----------------------------------
 
 def test_tensor_flattens_nested_lists_and_infers_shape():
     tensor = Tensor([[1, 2], [3, 4]])
@@ -14,6 +17,11 @@ def test_tensor_flattens_nested_lists_and_infers_shape():
     assert tensor.ndim == 2
     assert tensor.stype is int
 
+def test_tensor_infers_nd_shape():
+    tensor = Tensor([1, 2, 3, 4], (2, 2))
+    assert tensor.shape == (2, 2)
+    assert tensor.ndim == 2
+    assert tensor.stype is int
 
 def test_tensor_handles_empty_and_scalar_inputs():
     empty = Tensor([])
@@ -28,12 +36,32 @@ def test_tensor_handles_empty_and_scalar_inputs():
     assert scalar.shape == (1,)
     assert scalar.size == 1
 
+def test_tensor_equality():
+    assert Tensor([[1, 2, 3], [4, 5, 6]]) == Tensor([[1, 2, 3], [4, 5, 6]])
+    assert Tensor([[1, 2, 3], [4, 5, 6]]) == Tensor([1, 2, 3, 4, 5, 6], (2, 3))
 
-def test_tensor_size_uses_shape_sum_not_product():
+@pytest.mark.parametrize(
+        ("tensor", "ele_amount"),
+        [
+            (Tensor([1, 2, 3, 4, 5, 6], (2, 3)), 6),
+            (Tensor([[1, 2, 3], [4, 5, 6]]), 6),
+            (Tensor([]), 0)
+        ]
+)
+def test_tensor_len_and_size(tensor: Tensor, ele_amount: int):
+    assert len(tensor) == tensor.size and ele_amount == tensor.size
+
+def test_tensor_geitem_setitem():
     tensor = Tensor([[1, 2, 3], [4, 5, 6]])
-
     assert tensor.shape == (2, 3)
-    assert tensor.size == 5
+    tensor[(1, 2)] = 9
+    assert tensor[(1, 2)] == 9
+    raise NotImplementedError
+
+
+# -----------------------------------
+# Test properties
+# -----------------------------------
 
 
 def test_tensor_stype_uses_first_element_type_for_weird_types():
@@ -59,16 +87,13 @@ def test_tensor_dtype_and_reshape_accept_matching_size():
     tensor.reshape((3, 2))
 
     assert tensor.shape == (3, 2)
-    assert tensor.size == 5
+    assert tensor.size == 6
     assert tensor.stype is int
     assert tensor._infer_strides() == (2, 1)
 
 
-def test_tensor_clean_data_rejects_wrong_type_and_make_nd_data_is_unimplemented():
+def test_tensor_clean_data_rejects_wrong_type():
     tensor = Tensor([1, 2, 3])
 
     with pytest.raises(TypeError, match="Expected all tensor values to be of type"):
         tensor._clean_data([1, "two", 3], _type=int)
-
-    with pytest.raises(NotImplementedError):
-        tensor._make_nd_data()

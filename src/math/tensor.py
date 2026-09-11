@@ -29,7 +29,6 @@ class Tensor:
             self._shape: tuple[int, ...]   = shape
             self._strides: tuple[int, ...] = self._infer_strides()
 
-
     # -------------------------------------------------
     # DUNDER METHODS
     # -------------------------------------------------

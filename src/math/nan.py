@@ -30,6 +30,12 @@ class nan:
         return nan()
     def __isub__(self, other: Any) -> "nan":
         return nan()
+    def __mul__(self, other: Any) -> "nan":
+            return nan()
+    def __rmul__(self, other: Any) -> "nan":
+            return nan()
+    def __imul__(self, other: Any) -> "nan":
+            return nan()
     def __pow__(self, other: Any) -> "nan":
         return nan()
     def __rpow__(self, other: Any) -> "nan":
@@ -42,7 +48,7 @@ class nan:
         return nan()
     def __itrudiv__(self, other: Any) -> "nan":
         return nan()
-    def __neg__(self, other: Any) -> "nan":
+    def __neg__(self) -> "nan":
         return nan()
-    def __abs__(self, other: Any) -> "nan":
+    def __abs__(self) -> "nan":
         return nan()
