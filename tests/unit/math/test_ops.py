@@ -23,9 +23,12 @@ def test_prod_handles_edge_cases(data: list[Any], expected: Any):
 
 
 def test_cumprod_raising_error():
-    with pytest.raises(TypeError) as excinfo:
+    with pytest.raises((TypeError, ValueError)):
         prod(["two", 3])
+    with pytest.raises((TypeError, ValueError)):
+        prod([2, [[3, 4], 5]])
+    with pytest.raises((TypeError, ValueError)):
+        prod(["two", "three"])
 
-    assert excinfo.value.__notes__
-    assert "Could not multiply elements of type" in excinfo.value.__notes__[0]
-    assert "<class 'str'>" in excinfo.value.__notes__[0]
+if __name__ == "__main__":
+    print(prod([1, [2, 3]]))

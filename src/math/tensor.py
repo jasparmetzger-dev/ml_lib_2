@@ -6,7 +6,7 @@ from .scalar import is_scalar
 
 # -------------------------------------------------
 # TODO: __repr__
-# TODO: __getitem__ for ranges and dimensions
+# TODO: __getitem__ / __setitem__ for ranges
 # TODO is_broadcastable(), broadcast()
 # -------------------------------------------------
 
@@ -20,7 +20,7 @@ class Tensor:
 
         # 1. method
         if shape is None:
-            self._data: list[Any] = self._make_1d(
+            self._data: list[Any] = self._make_1d_data(
                 self._clean_data(data, _type=stype)
             )
             self._shape: tuple[int, ...]   = self._infer_shape(data)
@@ -53,29 +53,36 @@ class Tensor:
             if i != j: return False
         return True
 
-    # TODO IMPLEMENT __repr__()
     def __repr__(self) -> str:
         return f"values {self._data} with shape {self._shape}"
 
     def __len__(self) -> int:
         return self.size
 
-    def __getitem__(self, index: int) -> Any:
-        if index < 0 or index > self.size - 1:
-            raise IndexError("Index out of range")
-        return self._data[index]
+    def __getitem__(self, indices: tuple[int, ...] | int) -> Any:
+        if type(indices) == int:
+            if indices < 0 or indices > self.size - 1:
+                raise IndexError("Index out of range")
+            return self._data[indices]
 
-    def __setitem__(self, index: int, value: Any) -> None:
-        if index < 0 or index > self.size - 1:
-            raise IndexError("Index out of range")
+        self.__check_item_input(indices) # type: ignore
+        return self._data[self._calc_offset(indices)] # type: ignore
 
+    def __setitem__(self, indices: tuple[int, ...] | int, value: Any) -> None:
         try:
             value = self.stype(value)
         except (TypeError, ValueError) as e:
             e.add_note(f"could not broadcast value of type {type(value)} to the stype {self.stype}")
             raise e
 
-        self._data[index] = value
+        if type(indices) == int:
+            if indices < 0 or indices > self.size - 1:
+                raise IndexError("Index out of range")
+            self._data[indices] = value
+            return None
+
+        self.__check_item_input(indices) # type: ignore
+        self._data[self._calc_offset(indices)] = value # type: ignore
 
     def __contains__(self, value: Any) -> bool:
         try: value = self.stype(value)
@@ -208,20 +215,6 @@ class Tensor:
     # PRIVATE
     # -------------------------------------------------
 
-
-    def _make_1d(self, data: list[Any]) -> list[Any]:
-        arr: list[Any] = []
-
-        def _get_elements_recursively(val: Any) -> None:
-            if isinstance(val, list):
-                for ele in val: # type: ignore
-                    _get_elements_recursively(ele)
-            else:
-                arr.append(val)
-
-        _get_elements_recursively(data)
-        return arr
-
     def _infer_shape(self, data: Optional[list[Any]] = None) -> tuple[int, ...]:
         if data is None: x = self._data
         else: x = data
@@ -249,6 +242,28 @@ class Tensor:
         for i in range(len(shape) - 2, -1, -1):
             strides[i] = strides[i + 1] * shape[i + 1]
         return tuple(strides)
+
+    def _calc_offset(self, indices: tuple[int, ...]) -> int:
+        if len(list(indices)) != self.ndim:
+            raise IndexError(f"Have {len(indices)} indices, should have {self.ndim} indices.")
+
+        offset = 0
+        for j in range(self.ndim):
+            offset += indices[j] * self._strides[j]
+        return offset
+
+    def _make_1d_data(self, data: list[Any]) -> list[Any]:
+        arr: list[Any] = []
+
+        def _get_elements_recursively(val: Any) -> None:
+            if isinstance(val, list):
+                for ele in val: # type: ignore
+                    _get_elements_recursively(ele)
+            else:
+                arr.append(val)
+
+        _get_elements_recursively(data)
+        return arr
 
     def _make_nd_data(self, shape: Optional[tuple[int, ...]] = None) -> list[Any]:
         if shape is None:
@@ -337,3 +352,15 @@ class Tensor:
         else:
             new_data = [scalar ** ele for ele in tensor._data]
         return Tensor(new_data, tensor._shape)
+
+    # -------------------------------------------------
+    # HELPERS
+    # -------------------------------------------------
+
+    def __check_item_input(self, indices: tuple[int, ...]):
+        if len(list(indices)) != self.ndim:
+            raise IndexError(f"Too many indices ({len(list(indices))}) for tensor with {self.ndim} dimensions.")
+
+        for dim, dim_idx in enumerate(indices): # type: ignore
+            if dim_idx < 0 or dim_idx > self.shape[dim] - 1:
+                raise IndexError(f"Index in dimension {dim} out of range.")

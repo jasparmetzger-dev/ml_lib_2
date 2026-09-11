@@ -46,7 +46,7 @@ class nan:
         return nan()
     def __rtruediv__(self, other: Any) -> "nan":
         return nan()
-    def __itrudiv__(self, other: Any) -> "nan":
+    def __itruediv__(self, other: Any) -> "nan":
         return nan()
     def __neg__(self) -> "nan":
         return nan()

@@ -52,11 +52,36 @@ def test_tensor_equality():
 def test_tensor_len_and_size(tensor: Tensor, ele_amount: int):
     assert len(tensor) == tensor.size and ele_amount == tensor.size
 
-def test_tensor_geitem_setitem():
+def test_tensor_calc_offfset():
+    tensor = Tensor([[1, 2, 3], [4, 5, 6]])
+    assert tensor._calc_offset((0, 0)) == 0 # type: ignore
+    assert tensor._calc_offset((0, 2)) == 2 # type: ignore
+    assert tensor._calc_offset((1, 0)) == 3 # type: ignore
+    assert tensor._calc_offset((1, 2)) == 5 # type: ignore
+
+    with pytest.raises(IndexError):
+        tensor._calc_offset((0, 0, 0)) # type: ignore
+
+def test_tensor_geitem_setitem_int():
     tensor = Tensor([[1, 2, 3], [4, 5, 6]])
     assert tensor.shape == (2, 3)
     tensor[2] = 9
     assert tensor[2] == 9
+
+def test_tensor_geitem_setitem_tuple():
+    tensor = Tensor([[1, 2, 3], [4, 5, 6]])
+    assert tensor[(1, 0)] == 4
+    assert tensor[(0, 2)] == 3
+    tensor[(1, 0)] = 5
+    assert tensor[(1, 0)] == 5
+    with pytest.raises(IndexError):
+        tensor[(0, 0, 0)] = 1
+    with pytest.raises(IndexError):
+            tensor[(2, 0)] = 1
+    with pytest.raises(IndexError):
+        value = tensor[(2, 0)] # type: ignore
+    with pytest.raises(IndexError):
+        value = tensor[(0, 0, 0)] # type: ignore
 
 @pytest.mark.parametrize(
     ("tensor", "val", "is_contained"),
@@ -92,7 +117,7 @@ def test_tensor_tensor_add_subtract():
     tensor_int, tensor_float = Tensor([1, 2]), Tensor([2.0, 2.5])
     res = tensor_int + tensor_float
     assert res.stype == float
-    for val in res._data:
+    for val in res._data: # type: ignore
         assert type(val) == res.stype
 
 def test_tensor_scalar_mult_div():
@@ -139,11 +164,11 @@ def test_tensor_dtype_and_reshape_accept_matching_size():
     assert tensor.shape == (3, 2)
     assert tensor.size == 6
     assert tensor.stype is int
-    assert tensor._infer_strides() == (2, 1)
+    assert tensor._infer_strides() == (2, 1) # type: ignore
 
 
 def test_tensor_clean_data_rejects_wrong_type():
     tensor = Tensor([1, 2, 3])
 
     with pytest.raises(TypeError, match="Expected all tensor values to be of type"):
-        tensor._clean_data([1, "two", 3], _type=int)
+        tensor._clean_data([1, "two", 3], _type=int) # type: ignore
