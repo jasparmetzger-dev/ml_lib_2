@@ -172,3 +172,13 @@ def test_tensor_clean_data_rejects_wrong_type():
 
     with pytest.raises(TypeError, match="Expected all tensor values to be of type"):
         tensor._clean_data([1, "two", 3], _type=int) # type: ignore
+
+
+def test_tensor_outer():
+    tensor1, tensor2 = Tensor([1, 2, 3, 4, 5]), Tensor([2, 2, 2, 2, 2])
+    res = Tensor.outer(tensor1, tensor2)
+    assert res == Tensor([5*[2], 5*[4], 5*[6], 5*[8], 5*[10]])
+
+    with pytest.raises((TypeError, AttributeError)):
+        Tensor.outer(1, [5, 6])
+

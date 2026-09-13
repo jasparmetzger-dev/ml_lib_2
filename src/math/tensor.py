@@ -3,11 +3,11 @@ from typing import Any, Optional
 from .ops import prod
 from .validation import ShapeError, is_broadcastable
 from .scalar import is_scalar
-
-
+from .nan import nan
 
 # -------------------------------------------------
-# TODO: outer and @
+# TODO: test outer and @
+# TODO: __iter__
 # TODO: __repr__
 # TODO: __getitem__ / __setitem__ for ranges
 # TODO is_broadcastable(), broadcast()
@@ -153,7 +153,14 @@ class Tensor:
 
 
     def __matmul__(self, other: "Tensor") -> "Tensor":
-        ...
+        return Tensor.matrix_multiply(self, other)
+    def __imatmul__(self, other: "Tensor") -> "Tensor":
+        result = Tensor.matrix_multiply(other, self)
+        self._data = result._data
+        self._shape = result._shape
+        self._strides = result._strides
+        return self
+
     # -------------------------------------------------
     # PROPERTIES
     # -------------------------------------------------
@@ -219,7 +226,14 @@ class Tensor:
 
     @staticmethod
     def outer(tensor1: "Tensor", tensor2: "Tensor") -> "Tensor":
-        ...
+        if tensor1.ndim != 1 or tensor2.ndim != 1:
+            raise ShapeError("Tensor.outer() is only defined for ndim == 1")
+
+        data = []
+        for val in tensor1._data:
+            data.append((tensor2 * val).data_1d) # type: ignore
+        return Tensor(data) # type: ignore
+
     # -------------------------------------------------
     # PRIVATE
     # -------------------------------------------------
@@ -350,7 +364,6 @@ class Tensor:
             new_data = [scalar / ele for ele in tensor._data]
         return Tensor(new_data, tensor._shape)
 
-
     @staticmethod
     def scalar_exponentiate(tensor: "Tensor", scalar: Any, is_tensor_base: bool) -> "Tensor":
         if not is_scalar(scalar):
@@ -361,6 +374,32 @@ class Tensor:
         else:
             new_data = [scalar ** ele for ele in tensor._data]
         return Tensor(new_data, tensor._shape)
+
+    @staticmethod
+    def matrix_multiply(a: "Tensor", b: "Tensor") -> "Tensor":
+        """
+        For matrix * marix:
+            shapes: a: m * n, b: n * p, res: m * p
+            res_{i, j} = sum_{k=1}^k (a_{i, k} * b_{k, j})
+        For vecotr * matrix:
+            ...
+        """
+
+        if a.ndim != 2 or b.ndim != 2:
+            raise ShapeError(f"Dimensions of first Tensor must be two not {a.ndim}")
+
+        if a.shape[1] != b.shape[0]:
+            raise ShapeError("Shapes dont match for matrix multiplication.")
+
+        res: list[list[Any]] = [[nan()] * len(a._data[0])] * len(b._data)
+
+        for i in range(len(a._data[0])):
+            for j in range(len(b._data)):
+                res[i][j] = sum([
+                    a._data[i][k] * b._data[k][j]
+                    for k in range(len(a._data))
+                ])
+        return Tensor(res)
 
     # -------------------------------------------------
     # HELPERS
