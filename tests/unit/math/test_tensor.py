@@ -200,8 +200,6 @@ class TestTensorShaping:
         assert tensor.stype is int
         assert tensor._infer_strides() == (2, 1) # type: ignore
 
-
-
 def test_tensor_outer():
     tensor1, tensor2 = Tensor([1, 2, 3, 4, 5]), Tensor([2, 2, 2, 2, 2])
     res = Tensor.outer(tensor1, tensor2)
