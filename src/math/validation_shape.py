@@ -1,4 +1,4 @@
-from .ops import cumprod
+from .ops import prod
 
 class ShapeError(Exception):
     def __init__(self, message: str) -> None:
@@ -10,6 +10,9 @@ class ShapeError(Exception):
 # --------------------------------
 
 def validate_shape(shape: tuple[int, ...], size: int) -> None:
-    if cumprod(list(shape)) != size:
+    if prod(list(shape)) != size:
         raise ShapeError(f"checked shape {shape} does not match size {size}")
+
+def is_broadcastable(shape1: tuple[int, ...], shape2: tuple[int, ...]) -> bool:
+    return prod(list(shape1)) == prod(list(shape2))
 
