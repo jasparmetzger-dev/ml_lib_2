@@ -3,7 +3,6 @@ from typing import Any, Optional
 from .ops import prod
 from .validation import ShapeError, is_broadcastable
 from .scalar import is_scalar
-from .nan import nan
 
 # -------------------------------------------------
 # TODO: test outer and @
@@ -378,31 +377,55 @@ class Tensor:
     @staticmethod
     def matrix_multiply(a: "Tensor", b: "Tensor") -> "Tensor":
         """
-        For matrix * marix:
-            shapes: a: m * n, b: n * p, res: m * p
-            res_{i, j} = sum_{k=1}^k (a_{i, k} * b_{k, j})
-        For vecotr * matrix:
-            ...
+        Supports:
+        - 2D x 2D: (m, n) x (n, p) -> (m, p)
+        - 1D x 2D: (n,)   x (n, p) -> (p,)
+        - 2D x 1D: (m, n) x (n,)   -> (m,)
+        - 1D x 1D: (n,)   x (n,)   -> ()  (scalar tensor)
         """
+        if a.ndim not in (1, 2) or b.ndim not in (1, 2):
+            raise ShapeError(f"Tensors must be 1D or 2D, got a.ndim={a.ndim}, b.ndim={b.ndim}")
 
-        if a.ndim != 2 or b.ndim != 2:
-            raise ShapeError(f"Dimensions of first Tensor must be two not {a.ndim}")
+        # Promote 1D inputs temporarily for unified 2D matrix multiplication logic
+        a_is_1d = (a.ndim == 1)
+        b_is_1d = (b.ndim == 1)
 
-        if a.shape[1] != b.shape[0]:
-            raise ShapeError("Shapes dont match for matrix multiplication.")
+        a_shape = (1, a.shape[0]) if a_is_1d else a.shape
+        a_strides = (0, a._strides[0]) if a_is_1d else a._strides
 
-        res: list[list[Any]] = [[nan()] * len(a._data[0])] * len(b._data)
+        b_shape = (b.shape[0], 1) if b_is_1d else b.shape
+        b_strides = (b._strides[0], 0) if b_is_1d else b._strides
 
-        for i in range(len(a._data[0])):
-            for j in range(len(b._data)):
-                res[i][j] = sum([
-                    a._data[i][k] * b._data[k][j]
-                    for k in range(len(a._data))
-                ])
-        return Tensor(res)
+        m, n_a = a_shape
+        n_b, p = b_shape
+
+        if n_a != n_b:
+            raise ShapeError(f"Incompatible shapes for matmul: {a.shape} and {b.shape}")
+
+        out_data: list[Any] = []
+        for i in range(m):
+            for j in range(p):
+                val = 0
+                for k in range(n_a):
+                    idx_a = i * a_strides[0] + k * a_strides[1]
+                    idx_b = k * b_strides[0] + j * b_strides[1]
+                    val += a._data[idx_a] * b._data[idx_b]
+                out_data.append(val)
+
+        # Determine target output shape
+        if a_is_1d and b_is_1d:
+            out_shape = ()
+        elif a_is_1d:
+            out_shape = (p,)
+        elif b_is_1d:
+            out_shape = (m,)
+        else:
+            out_shape = (m, p)
+
+        return Tensor(out_data, out_shape)
 
     # -------------------------------------------------
-    # HELPERS
+    # __HELPERS
     # -------------------------------------------------
 
     def __check_item_input(self, indices: tuple[int, ...]):
