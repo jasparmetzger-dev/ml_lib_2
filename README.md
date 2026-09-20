@@ -1,7 +1,8 @@
 # ml_lib_2
 
-## Branch main
-Main branch, no work should happen here unless info changes or git, github, ... changes.
+## Branch 2-ml-abcs
+
+Implementing base classes for model (Layer, Container, Optimizer)
 
 ## Idea
 The ml_lib_2 project is supposed to be an implementation of classical machine learning methods based only on the standard library. This will of course be significantly slower than using *numpy*, but it teaches concepts of ND-shaping. It also gives this project it´s own math library.

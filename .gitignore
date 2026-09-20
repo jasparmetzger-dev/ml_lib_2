@@ -1,8 +1,9 @@
-# PYTEST
+# === PYTEST ===
+
 .coverage
 .pytest_cache
 
-# PYTHON
+# === PYTHON ===
 
 .venv
 *.pyd
