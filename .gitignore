@@ -1,1 +1,10 @@
+# PYTEST
+.coverage
+.pytest_cache
 
+# PYTHON
+
+.venv
+*.pyd
+*.pyl
+__pycache__

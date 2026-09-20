@@ -1,9 +1,7 @@
 # ml_lib_2
 
-## Branch 1-mvp-math
-### DoD
-- implementation of Tensor.outer() for two 1D-Tensors
-- implementation of matrix multiplication (Tensor.__matmul__()) for 2D-Tensors
+## Branch main
+Main branch, no work should happen here unless info changes or git, github, ... changes.
 
 ## Idea
 The ml_lib_2 project is supposed to be an implementation of classical machine learning methods based only on the standard library. This will of course be significantly slower than using *numpy*, but it teaches concepts of ND-shaping. It also gives this project it´s own math library.

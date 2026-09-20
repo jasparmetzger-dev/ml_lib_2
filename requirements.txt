@@ -1,2 +1,5 @@
+# only for testing, only stdlib for the project
+
 pytest
 pytest-cov
+numpy
