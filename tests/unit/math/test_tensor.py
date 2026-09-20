@@ -4,7 +4,7 @@ from typing import Any
 import pytest
 
 from src.math.tensor import Tensor
-from src.math.validation_shape import ShapeError
+from src.math.validation import ShapeError
 
 class TestTensorInitialization:
     def test_tensor_flattens_nested_lists_and_infers_shape(self):
